@@ -6,7 +6,7 @@ import log
 
 from stash_interface import StashInterface
 import config
-import urllib.request
+import requests, filetype
 
 def basename(f):
     f = os.path.normpath(f)
@@ -42,7 +42,7 @@ def VersionFile(filename):
                 os.rename(filename, new_file)
                 return True
 
-        raise RuntimeError("Can't {} {!r}, all name taken".format(vtype, filename))
+        raise RuntimeError("Can't {} {!r}, all names taken".format(vtype, filename))
 
     return False
 
@@ -166,12 +166,35 @@ def saveposter(scene, poster):
             if "front_image_path" in m:
                 posterurl = m["front_image_path"]
                 if posterurl is not None:
-                    urllib.request.urlretrieve(posterurl, poster)
+                    # We need to rewrite the URL so API key gets properly inserted in case Stash is secured with username and password
+                    response = requests.get(URLrewrite(posterurl))
+                    if response.status_code != 200:
+                        log.error("Couldn't fetch the image - is poster URL correct?")
+                        return
+                    imageType = filetype.guess(response.content)
+                    if imageType is None:
+                        log.warning('Cannot guess iamge type! Is poster truly an image?')
+                        return
+                    save_path = f"{poster}.{imageType.extension}"
+                    with open(save_path, 'wb') as f:
+                        f.write(response.content)
                     gotposter = True
     # no movie poster, so let's (sadly) include the landscape screenshot as the poster, until we can do better.
     if gotposter == False:
         posterurl = scene["paths"]["screenshot"]
-        urllib.request.urlretrieve(posterurl, poster)
+        # Same goes here, needs to be rewritten with API key
+        response = requests.get(URLrewrite(posterurl))
+        if response.status_code != 200:
+            log.error("Couldn't fetch the image - is poster URL correct?")
+            return
+        imageType = filetype.guess(response.content)
+        if imageType is None:
+            log.warning('Cannot guess iamge type! Is poster truly an image?')
+            return
+        save_path = f"{poster}.{imageType.extension}"
+        with open(save_path, 'wb') as f:
+            f.write(response.content)
+            f.close()
 
 
 def generateNFO(scene):
@@ -194,6 +217,7 @@ def generateNFO(scene):
 {tags}
 {thumbs}
 {fanart}
+{art}
 {genres}
 </movie>"""
 
@@ -273,13 +297,14 @@ def generateNFO(scene):
     if gotposter == False:
         thumbs.append("""    <thumb aspect="poster">{}</thumb>""".format(xmlSafe(URLrewrite(scene["paths"]["screenshot"]))))
 
-    fanart = ["""    <thumb aspect="fanart">{}</thumb>""".format(xmlSafe(URLrewrite(scene["paths"]["screenshot"])))]
+    customart = ["""    <thumb aspect="fanart">{}</thumb>""".format(xmlSafe(URLrewrite(scene["paths"]["screenshot"])))]
 
     if logo != "":
         thumbs.append("""    <thumb aspect="clearlogo">{}</thumb>""".format(xmlSafe(URLrewrite(logo))))
-        fanart.append("""    <thumb aspect="clearlogo">{}</thumb>""".format(xmlSafe(URLrewrite(logo))))
+        customart.append("""    <thumb aspect="clearlogo">{}</thumb>""".format(xmlSafe(URLrewrite(logo))))
 
-    fanart = """    <fanart>\n    {}\n    </fanart>""".format("\n".join(fanart))
+    fanart = """    <fanart>\n    {}\n    </fanart>""".format("\n".join(customart))
+    art = """    <art>\n    {}\n    </art>""".format("\n".join(customart))
 
     ret = ret.format(title = xmlSafe(getSceneTitle(scene)),
                      now = datetime.now(),
@@ -298,6 +323,7 @@ def generateNFO(scene):
                      tags = tags,
                      thumbs = "\n".join(thumbs),
                      fanart = fanart,
+                     art = art,
                      genres = "\n".join(genres)
                      )
     ret = ret.replace("\n\n", "\n")
