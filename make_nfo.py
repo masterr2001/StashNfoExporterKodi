@@ -41,25 +41,23 @@ def VersionFile(filename):
             if not os.path.exists(new_file):
                 os.rename(filename, new_file)
                 return True
-
         raise RuntimeError("Can't {} {!r}, all names taken".format(vtype, filename))
-
     return False
 
 def getOutputSTRMFile(scene):
     if config.filename == "filename":
-        return os.path.join(config.save_path, "{}.".format(os.path.splitext(basename(scene["path"]))[0]) + config.playlist_ext)
+        return os.path.join(config.save_path, "{}.".format(os.path.splitext(basename(scene['files'][0]['path']))[0]) + config.playlist_ext)
     elif config.filename == "stashid":
         sceneID = scene["id"]
         return os.path.join(config.save_path, "{}.".format(sceneID) + config.playlist_ext)
     else:
         log.error("Check your config file.")
-
+# In the follmmm f
 def getOutputNFOFile(scene):
     if config.save_path == "with files":
-        return os.path.join(os.path.dirname(scene["path"]), "{}.nfo".format(os.path.splitext(basename(scene["path"]))[0]))
+        return os.path.join(os.path.dirname(scene['files'][0]['path']), "{}.nfo".format(os.path.splitext(basename(scene['files'][0]['path']))[0]))
     elif config.filename == "filename":
-        return os.path.join(config.save_path, "{}.nfo".format(os.path.splitext(basename(scene["path"]))[0]))
+        return os.path.join(config.save_path, "{}.nfo".format(os.path.splitext(basename(scene['files'][0]['path']))[0]))
     elif config.filename == "stashid":
         sceneID = scene["id"]
         return os.path.join(config.save_path, "{}.nfo".format(sceneID))
@@ -68,7 +66,7 @@ def getOutputNFOFile(scene):
 
 def getOutputPosterFile(scene):
     if config.save_path == "with files":
-        return os.path.join(os.path.dirname(scene["path"]), "{}-poster".format(os.path.splitext(basename(scene["path"]))[0]))
+        return os.path.join(os.path.dirname(scene['files'][0]['path']), "{}-poster".format(os.path.splitext(basename(scene['files'][0]['path']))[0]))
     else:
         log.error("Check your config file.")
 
@@ -90,7 +88,7 @@ def getPosterExtension(scene):
 def getSceneTitle(scene):
     if scene["title"] != None and scene["title"] != "":
         return scene["title"]
-    return basename(scene["path"])
+    return basename(scene['files'][0]['path'])
 
 def getGenreTags():
     if config.genre_parentname != "":
@@ -159,11 +157,11 @@ def URLrewrite(url):
 def generateSTRM(scene):
     if config.m3u:
         if config.playlist_ext == "m3u8":
-            return "#EXTM3U\n#EXTENC: UTF-8\n#EXTINF:" + str(int(scene["file"]["duration"])) + "," + getSceneTitle(scene) + "\n" + URLrewrite(scene["paths"]["stream"])
+            return "#EXTM3U\n#EXTENC: UTF-8\n#EXTINF:" + str(int(scene['files'][0]["duration"])) + "," + getSceneTitle(scene) + "\n" + URLrewrite(scene['paths']["stream"])
         else:
-            return "#EXTM3U\n#EXTINF:" + str(int(scene["file"]["duration"])) + "," + getSceneTitle(scene) + "\n" + URLrewrite(scene["paths"]["stream"])
+            return "#EXTM3U\n#EXTINF:" + str(int(scene['files'][0]["duration"])) + "," + getSceneTitle(scene) + "\n" + URLrewrite(scene['paths']["stream"])
     else:
-        return URLrewrite(scene["paths"]["stream"])
+        return URLrewrite(scene['paths']["stream"])
 
 def checkmovie(scene):
     if "movies" in scene:
@@ -196,7 +194,7 @@ def saveposter(scene, poster):
                     gotposter = True
     # no movie poster, so let's (sadly) include the landscape screenshot as the poster, until we can do better.
     if gotposter == False:
-        posterurl = scene["paths"]["screenshot"]
+        posterurl = scene['files'][0]['path']["screenshot"]
         # Same goes here, needs to be rewritten with API key
         response = requests.get(URLrewrite(posterurl))
         if response.status_code != 200:
@@ -250,8 +248,8 @@ def generateNFO(scene):
             genres.append("    <genre>{}</genre>\n".format(xmlSafe(t["name"])))
 
     rating = ""
-    if scene["rating"] != None:
-        rating = scene["rating"]
+    if scene["rating100"] != None:
+        rating = scene["rating100"]
 
     date = ""
     if scene["date"] != None:
@@ -307,7 +305,7 @@ def generateNFO(scene):
             if "front_image_path" in m:
                 poster = m["front_image_path"]
                 if poster is not None:
-                    # if imgType is not None: # We can implement local thumb as well, same as poster
+                # if imgType is not None: # We can implement local thumb as well, same as poster
                     thumbs.append("""    <thumb aspect="poster">{}</thumb>""".format(xmlSafe(URLrewrite(poster))))
                     gotposter = True
             if "back_image_path" in m:
@@ -318,13 +316,11 @@ def generateNFO(scene):
 
     # no movie poster, so let's (sadly) include the landscape screenshot as the poster, until we can do better.
     if gotposter == False:
-        # Since we are linking to the same file we worked with previously, we can just replace the link with that same version
         thumbs.append("""    <thumb aspect="poster">{}</thumb>""".format(outputPosterFile))
 
     customart = ["""    <thumb aspect="fanart">{}</thumb>""".format(outputPosterFile)]
 
     if logo != "":
-        # Again, we can use the same principal as above to fetch and link local files
         thumbs.append("""    <thumb aspect="clearlogo">{}</thumb>""".format(xmlSafe(URLrewrite(logo))))
         customart.append("""    <thumb aspect="clearlogo">{}</thumb>""".format(xmlSafe(URLrewrite(logo))))
 
