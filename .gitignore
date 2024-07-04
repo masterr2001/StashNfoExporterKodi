@@ -1,2 +1,4 @@
 localtest.bat
 stash_interface.py
+test_input
+.vscode/launch.json

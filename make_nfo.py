@@ -281,9 +281,9 @@ def generateNFO(scene):
     thumbs = ["""    <thumb aspect="landscape">{}</thumb>""".format(xmlSafe(URLpathsScreenshot))]
     imgType = getPosterExtension(scene)
     outputPosterFile = xmlSafe(URLpathsScreenshot)
-    if imgType is not None:
-        outputPosterFile = xmlSafe(f"{getOutputPosterFile(scene)}.{imgType.extension}")
-        thumbs = ["""    <thumb aspect="landscape">{}</thumb>""".format(outputPosterFile)]
+    if imgType is not None:        
+        thumbs = ["""    <thumb aspect="landscape">{}</thumb>""".format(xmlSafe(URLrewrite(scene["paths"]["screenshot"])))]
+    
 
     set = ""
     director = ""
@@ -318,8 +318,9 @@ def generateNFO(scene):
     if gotposter == False:
         thumbs.append("""    <thumb aspect="poster">{}</thumb>""".format(outputPosterFile))
 
-    customart = ["""    <thumb aspect="fanart">{}</thumb>""".format(outputPosterFile)]
-
+    customart = ["""    <thumb aspect="fanart">{}</thumb>""".format(xmlSafe(URLrewrite(scene["paths"]["screenshot"])))]
+    
+    
     if logo != "":
         thumbs.append("""    <thumb aspect="clearlogo">{}</thumb>""".format(xmlSafe(URLrewrite(logo))))
         customart.append("""    <thumb aspect="clearlogo">{}</thumb>""".format(xmlSafe(URLrewrite(logo))))
